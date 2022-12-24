@@ -5,22 +5,22 @@ package com.drkwitht;
  * @implNote This does not support chunked responses yet. This may be added later for HTTP/1.1 compliance.
  */
 public class SimpleResponse {
-    StringBuilder msgBuilder;
+    private StringBuilder msgBuilder;
 
     public SimpleResponse() {
         msgBuilder = new StringBuilder();
     }
 
-    private void addBody(String content) {
-        msgBuilder.append("\r\n\r\n").append(content);
+    public void addBody(String content) {
+        msgBuilder.append("\r\n").append(content);
     }
 
     public void addTop(String httpVersion, int statusCode, String statusMessage) {
-        msgBuilder.append(httpVersion).append(' ').append(statusCode).append(' ').append(statusMessage);
+        msgBuilder.append(httpVersion).append(' ').append(statusCode).append(' ').append(statusMessage).append("\r\n");
     }
 
     public void addHeader(String name, String value) {
-        msgBuilder.append(name).append(": ").append(value);
+        msgBuilder.append(name).append(": ").append(value).append("\r\n");
     }
 
     public byte[] asBytes() {
