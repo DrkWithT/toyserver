@@ -1,0 +1,11 @@
+# gitignore
+# By: Derek Tan
+
+# Ignore git files!
+.git
+.DS_Store
+
+# Ignore other Java files!
+target
+*.class
+*.jar
