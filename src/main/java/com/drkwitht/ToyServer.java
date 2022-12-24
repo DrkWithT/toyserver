@@ -11,17 +11,10 @@ import java.io.IOException;
  */
 public class ToyServer 
 {
-    /// Constants
-    private static final int BACKLOG = 10;
-
     /// Data
     private int port;
     private int backlog; 
     private boolean isListening;
-
-    /// Objects
-    /// todo: put collection of worker objects!
-    /// todo: put collection of dead worker locations!
     
     // Acceptor
     private class ConnectionEntry implements Runnable {
@@ -46,7 +39,7 @@ public class ToyServer
                 try {
                     Socket connection = entrySocket.accept();
 
-                    // new Thread(new ServerWorker(connection)).start();
+                    new Thread(new ServerWorker(connection)).start();
                 } catch (IOException ioError) {
                     System.err.println("Connection Err: " + ioError);
                 }
@@ -80,11 +73,12 @@ public class ToyServer
 
     public static void main( String[] args )
     {
-        // try {
-        // ToyServer app = new ToyServer(5000, 5);
-        // app.listen();
-        // } catch (IOException listenError) {
-        // System.err.println("Failed to launch server.");
-        // }
+        try {
+            ToyServer app = new ToyServer(5000, 5);
+            app.listen();
+
+        } catch (IOException listenError) {
+            System.err.println("Failed to launch server.");
+        }
     }
 }
