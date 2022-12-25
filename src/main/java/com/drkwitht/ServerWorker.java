@@ -10,6 +10,9 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class ServerWorker implements Runnable {
+    // This is the max UTF-8 char count for any http body to skip or process!
+    private static final long MAX_BODY_LEN = 16384;
+
     private Socket connection;
     private BufferedReader requestStream;
     private PrintStream responseStream;
@@ -21,6 +24,7 @@ public class ServerWorker implements Runnable {
     private String reqHTTPVersion; // todo: check this top request field
     private String reqURL; // todo: check this URL against a mapping of paths to resource files
     private String reqMethod;
+    private long reqBodyLength;
 
     public ServerWorker(Socket connectingSocket) throws IOException {
         connection = connectingSocket;
@@ -31,6 +35,7 @@ public class ServerWorker implements Runnable {
 
         running = true;
         hasBadRequest = false;
+        reqBodyLength = 0;
     }
 
     private String readHTTPLine() throws IOException {
@@ -42,12 +47,44 @@ public class ServerWorker implements Runnable {
         return top.trim();
     }
 
-    private void ignoreRemainder() throws IOException {
-        String tempLine;
+    private long numberHTTPField(String field) {
+        long result;
 
+        try {
+            result = Long.parseLong(field);
+        } catch (NumberFormatException parseError) {
+            result = 0;
+        }
+
+        return result;
+    }
+
+    // private String[] splitHTTPField(String field) {}
+
+    private void ignoreHTTPBody(long length) throws IOException {
+        requestStream.skip(length);
+    }
+
+    private void scanRemainder() throws IOException {
+        String tempLine;
+        String[] lineTokens;
+
+        // skip all headers except Content-Length for now!
         do {
             tempLine = readHTTPLine();
-        } while (tempLine != null);
+            lineTokens = tempLine.trim().split(":");
+
+            if (lineTokens[0].toLowerCase() == "content-length") {
+                reqBodyLength = numberHTTPField(lineTokens[1]);
+            }
+        } while (tempLine != null && tempLine.length() > 0);
+
+        // skip through body bytes for now!
+        if (reqBodyLength == 0) {
+            reqBodyLength = MAX_BODY_LEN;
+        }
+
+        ignoreHTTPBody(reqBodyLength);
     }
 
     @Override
@@ -57,8 +94,8 @@ public class ServerWorker implements Runnable {
                 String requestStatus = readHTTPLine();
                 String[] statusTokens = requestStatus.split(" ");
                 
-                // ignore other parts of request
-                ignoreRemainder();
+                // ignore other parts of request except (Content-Length: ??)
+                scanRemainder();
 
                 // handle malformed or obsolete requests with 400: Bad Request
                 hasBadRequest = statusTokens.length != 3;
@@ -79,13 +116,13 @@ public class ServerWorker implements Runnable {
                 reqURL = statusTokens[1]; // note: for future use
                 reqHTTPVersion = statusTokens[2]; // note: for future use
 
-                // handle unsupported HTTP methods with 405: Method Not Allowed
-                hasBadRequest = reqMethod != "GET";
+                // handle unsupported HTTP methods with 501: Not Implemented
+                hasBadRequest = reqMethod != "GET" && reqMethod != "HEAD";
 
                 if (hasBadRequest) {
                     SimpleResponse res = new SimpleResponse();
 
-                    res.addTop("HTTP/1.1", 405, "Method Not Allowed");
+                    res.addTop("HTTP/1.1", 501, "Not Implemented");
                     res.addHeader("Server: ", "ToyServer/0.1");
                     res.addHeader("Date: ", timeFormat.format(ZonedDateTime.now()));
                     res.addBody("");
@@ -105,7 +142,7 @@ public class ServerWorker implements Runnable {
                 responseStream.write(res.asBytes());
 
             } catch (IOException ioError) {
-                System.err.println("Worker err: " + ioError);
+                System.err.println("ServerWorker: I/O Err: " + ioError);
                 running = false;
             }
         }
@@ -113,7 +150,7 @@ public class ServerWorker implements Runnable {
         try {
             connection.close();
         } catch (IOException ioError) {
-            System.err.println("Worker err: " + ioError);
+            System.err.println("ServerWorker: Close err: " + ioError);
         }
     }
 }
