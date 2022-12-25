@@ -2,6 +2,7 @@ package com.drkwitht;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Scanner;
 import java.io.IOException;
 
 /**
@@ -9,7 +10,7 @@ import java.io.IOException;
  * This is the driver class containing the static HTTP server's main logic.
  * @author Derek Tan
  */
-public class ToyServer 
+public class ToyServer
 {
     /// Data
     private int port;
@@ -40,6 +41,8 @@ public class ToyServer
                     Socket connection = entrySocket.accept();
 
                     new Thread(new ServerWorker(connection)).start();
+
+                    System.out.println("Started worker.");
                 } catch (IOException ioError) {
                     System.err.println("Connection Err: " + ioError);
                 }
@@ -63,12 +66,18 @@ public class ToyServer
         isListening = false;
     }
 
+    public void toggleListenFlag() {
+        isListening = !isListening;
+    }
+
     public void listen() throws IOException {
         if (isListening)
             return;
         
         isListening = true;
         new Thread(new ConnectionEntry(port, backlog)).start();
+
+        System.out.println("Started server at port: " + port);
     }
 
     public static void main( String[] args )
@@ -77,6 +86,18 @@ public class ToyServer
             ToyServer app = new ToyServer(5000, 5);
             app.listen();
 
+            System.out.println("Enter \"close\" to close.");
+            Scanner confirm = new Scanner(System.in);
+            
+            while (true) {
+                String userInput = confirm.nextLine();
+
+                if (userInput == "close") {
+                    app.toggleListenFlag();
+                    confirm.close();
+                    break;
+                }
+            }
         } catch (IOException listenError) {
             System.err.println("Failed to launch server.");
         }
