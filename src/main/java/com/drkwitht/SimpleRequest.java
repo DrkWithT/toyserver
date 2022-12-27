@@ -20,6 +20,7 @@ public class SimpleRequest {
     public SimpleRequest(BufferedReader rawStream) {
         requestStream = rawStream;
 
+        methodMap = new HashMap<String, HTTPMethod>();
         methodMap.put("HEAD", HTTPMethod.HEAD);
         methodMap.put("GET", HTTPMethod.GET);
         methodMap.put("POST", HTTPMethod.POST);
@@ -27,8 +28,12 @@ public class SimpleRequest {
     }
 
     private HTTPMethod decodeMethod(String name) {
+        if (name == null) {
+            return HTTPMethod.UNKNOWN;
+        }
+        
         if (!methodMap.containsKey(name)) {
-            return methodMap.get("UNKNOWN");
+            return HTTPMethod.UNKNOWN;
         }
         
         return methodMap.get(name);
@@ -53,9 +58,13 @@ public class SimpleRequest {
             return null;
         }
 
+        if (rawLine.isBlank()) {
+            return new HTTPHeader("foo", "none");
+        }
+
         String[] tokens = rawLine.trim().split(":");
 
-        return new HTTPHeader(tokens[0].trim().toLowerCase(), tokens[1].trim());
+        return new HTTPHeader(tokens[0], tokens[1]);
     }
 
     public HTTPBody fetchBody(HTTPContentType type, int contentLength) throws IOException, Exception {
