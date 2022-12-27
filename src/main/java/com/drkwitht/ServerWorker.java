@@ -37,7 +37,7 @@ public class ServerWorker implements Runnable {
         serverName = applicationName;
         running = true;
         hasInternalError = false;
-        hasBadRequest = false;
+        hasBadRequest = true;
         reqBodyLength = 0;
     }
 
@@ -55,28 +55,34 @@ public class ServerWorker implements Runnable {
 
     @Override
     public void run() {
-        while (running) {
-            hasBadRequest = true;
-            
+        while (running) {   
             try {
                 SimpleRequest request = new SimpleRequest(requestStream);
                 
-                HTTPHeading heading = request.fetchHeading();
+                HTTPHeading heading = request.fetchHeading(); // TODO: use this later for line below!
 
-                HTTPMethod method = heading.fetchMethod(); // TODO: use this later for supported method checks.
+                System.out.println("Heading: " + heading.fetchMethod() + ";" + heading.fetchURL() + ";" + heading.fetchVersion()); // DEBUG
+
+                // HTTPMethod method = heading.fetchMethod(); // TODO: use this later for supported method checks.
                 HTTPHeader aHeader = request.fetchHeader();
 
-                do {
-                    aHeader = request.fetchHeader();
+                while(aHeader != null) {
+                    // stop header scanning at "Foo" (placeholder for empty HTTP line)
+                    if (aHeader.fetchName() == "foo") {
+                        break;
+                    }
 
                     // require host header
-                    if (aHeader.fetchName() == "host") {
+                    System.out.println("Scanning: " + aHeader.fetchName()); // DEBUG
+
+                    if (aHeader.fetchName().equals("Host")) {
                         hasBadRequest = false;
-                    } else if (aHeader.fetchName() == "content-length") {
+                    } else if (aHeader.fetchName().equals("Content-Length")) {
                         reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
                     }
                     
-                } while(aHeader != null);
+                    aHeader = request.fetchHeader();
+                };
                 
                 // skip body for now
                 request.fetchBody(HTTPContentType.UNKNOWN, reqBodyLength);
@@ -106,8 +112,8 @@ public class ServerWorker implements Runnable {
                     responseStream.write(res.asBytes());
                     responseStream.flush();
                 }
-            
-                connection.close();
+
+                running = false;
             } catch (IOException ioError) {
                 System.err.println("ServerWorker: I/O Err: " + ioError);
                 hasInternalError = true;
@@ -134,6 +140,13 @@ public class ServerWorker implements Runnable {
                     running = false;
                 }
             }
+        }
+
+        // attempt to close connection on fatal error
+        try {
+            connection.close();
+        } catch (IOException ioError) {
+            System.err.println("Server Worker: Closing Err: " + ioError);
         }
     }
 }
