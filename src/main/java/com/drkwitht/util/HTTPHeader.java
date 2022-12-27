@@ -1,4 +1,4 @@
-package com.drkwitht;
+package com.drkwitht.util;
 
 /**
  * This is a data class encapsulating a single HTTP request header's information. Supports basic, multi-part header values.

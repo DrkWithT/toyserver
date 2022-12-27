@@ -1,4 +1,4 @@
-package com.drkwitht;
+package com.drkwitht.util;
 
 /**
  * Defines HTTP content type codes. This will be used anywhere except the server driver code.

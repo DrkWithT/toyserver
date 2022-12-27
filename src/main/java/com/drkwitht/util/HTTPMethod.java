@@ -1,4 +1,4 @@
-package com.drkwitht;
+package com.drkwitht.util;
 
 /**
  * Defines supported HTTP method codes. This will be used anywhere except server driver code.

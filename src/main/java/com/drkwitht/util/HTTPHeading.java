@@ -1,4 +1,4 @@
-package com.drkwitht;
+package com.drkwitht.util;
 
 /**
  * This data class encapsulates basic fields of an HTTP/1.0 or 1.1 <em>request</em> heading.
