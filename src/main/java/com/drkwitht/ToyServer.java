@@ -2,7 +2,6 @@ package com.drkwitht;
 
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
 import java.io.IOException;
 
 /**
@@ -87,19 +86,6 @@ public class ToyServer
         try {
             ToyServer app = new ToyServer(5000, 5);
             app.listen();
-
-            System.out.println("Enter \"close\" to close.");
-            Scanner confirm = new Scanner(System.in);
-            
-            while (true) {
-                String userInput = confirm.nextLine();
-
-                if (userInput == "close") {
-                    app.toggleListenFlag();
-                    confirm.close();
-                    break;
-                }
-            }
         } catch (IOException listenError) {
             System.err.println("Failed to launch server.");
         }
