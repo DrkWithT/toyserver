@@ -5,7 +5,7 @@ package com.drkwitht.util;
  */
 public class HTTPBody {
     private HTTPContentType type;
-    private long length;
+    private int length;
     private String content;
 
     public HTTPBody(HTTPContentType typeCode, String contentText) {
