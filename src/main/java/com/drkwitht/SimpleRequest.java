@@ -34,11 +34,11 @@ public class SimpleRequest {
         return methodMap.get(name);
     }
 
-    public HTTPHeading fetchHeading() throws IOException, Exception {
+    public HTTPHeading fetchHeading() throws IOException {
         String rawLine = requestStream.readLine();
 
         if (rawLine == null) {
-            throw new Exception("Unexpected end of request.");
+            return null;
         }
 
         String[] tokens = rawLine.split(" ");
@@ -46,20 +46,20 @@ public class SimpleRequest {
         return new HTTPHeading(decodeMethod(tokens[0]), tokens[1], tokens[2]);
     }
 
-    public HTTPHeader getHeader() throws IOException, Exception {
+    public HTTPHeader fetchHeader() throws IOException {
         String rawLine = requestStream.readLine();
 
         if (rawLine == null) {
-            throw new Exception("Unexpected end of request.");
+            return null;
         }
 
         String[] tokens = rawLine.trim().split(":");
 
-        return new HTTPHeader(tokens[0], tokens[1]);
+        return new HTTPHeader(tokens[0].trim().toLowerCase(), tokens[1].trim());
     }
 
-    public HTTPBody getBody(HTTPContentType type, int contentLength) throws IOException, Exception {
-        if (contentLength <= 0) {
+    public HTTPBody fetchBody(HTTPContentType type, int contentLength) throws IOException, Exception {
+        if (contentLength < 0) {
             throw new Exception("Invalid content length: " + contentLength);
         }
 
