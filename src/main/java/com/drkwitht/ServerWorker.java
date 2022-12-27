@@ -17,18 +17,20 @@ public class ServerWorker implements Runnable {
     private DateTimeFormatter timeFormat;
 
     private boolean hasBadRequest;
+    private String serverName;
     private String reqHTTPVersion; // todo: check this top request field
     private String reqURL; // todo: check this URL against a mapping of paths to resource files
     private String reqMethod; // todo: check this for supported methods later
     private long reqBodyLength; // todo: use for req handling later
 
-    public ServerWorker(Socket connectingSocket) throws IOException {
+    public ServerWorker(String applicationName, Socket connectingSocket) throws IOException {
         connection = connectingSocket;
         requestStream = new BufferedReader(new InputStreamReader(connection.getInputStream()));
         responseStream = new PrintStream(new BufferedOutputStream(connection.getOutputStream()));
 
         timeFormat = DateTimeFormatter.RFC_1123_DATE_TIME;
 
+        serverName = applicationName;
         hasBadRequest = false;
         reqBodyLength = 0;
     }
@@ -54,7 +56,9 @@ public class ServerWorker implements Runnable {
         return result;
     }
 
-    // private String[] splitHTTPField(String field) {}
+    private String[] splitHTTPField(String field) {
+        return field.trim().split(";");
+    }
 
     private void ignoreHTTPBody(long length) throws IOException {
         if (length == 0) {
@@ -86,7 +90,7 @@ public class ServerWorker implements Runnable {
 
             lineTokens = tempLine.trim().split(":");
 
-            if (lineTokens[0].toLowerCase() == "content-length") {
+            if (lineTokens[0].toLowerCase() == "content-length" && lineTokens.length > 1) {
                 reqBodyLength = numberHTTPField(lineTokens[1]);
             }
         } while (!tempLine.isEmpty());
@@ -111,7 +115,7 @@ public class ServerWorker implements Runnable {
                 SimpleResponse res = new SimpleResponse();
 
                 res.addTop("HTTP/1.1", 400, "Bad Request");
-                res.addHeader("Server", "ToyServer/0.1");
+                res.addHeader("Server", serverName);
                 res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
                 res.addBody("");
 
@@ -132,7 +136,7 @@ public class ServerWorker implements Runnable {
             SimpleResponse res = new SimpleResponse();
 
             res.addTop("HTTP/1.1", 200, "OK");
-            res.addHeader("Server", "ToyServer/0.1");
+            res.addHeader("Server", serverName);
             res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
             res.addHeader("Content-Type", "text/plain");
             res.addHeader("Content-Length", "11");

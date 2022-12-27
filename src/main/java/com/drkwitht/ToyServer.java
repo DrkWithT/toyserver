@@ -12,6 +12,8 @@ import java.io.IOException;
  */
 public class ToyServer
 {
+    private static final String APP_NAME = "ToyServer/0.1";
+
     /// Data
     private int port;
     private int backlog; 
@@ -40,7 +42,7 @@ public class ToyServer
                 try {
                     Socket connection = entrySocket.accept();
 
-                    new Thread(new ServerWorker(connection)).start();
+                    new Thread(new ServerWorker(APP_NAME, connection)).start();
 
                     System.out.println("Started worker.");
                 } catch (IOException ioError) {
