@@ -9,6 +9,11 @@ import java.net.Socket;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
+import com.drkwitht.util.HTTPContentType;
+import com.drkwitht.util.HTTPHeader;
+import com.drkwitht.util.HTTPHeading;
+import com.drkwitht.util.HTTPMethod;
+
 public class ServerWorker implements Runnable {
     private Socket connection;
     private BufferedReader requestStream;
@@ -16,12 +21,11 @@ public class ServerWorker implements Runnable {
     
     private DateTimeFormatter timeFormat;
 
+    private boolean running;
+    private boolean hasInternalError;
     private boolean hasBadRequest;
     private String serverName;
-    private String reqHTTPVersion; // todo: check this top request field
-    private String reqURL; // todo: check this URL against a mapping of paths to resource files
-    private String reqMethod; // todo: check this for supported methods later
-    private long reqBodyLength; // todo: use for req handling later
+    private int reqBodyLength; // todo: use for req handling later
 
     public ServerWorker(String applicationName, Socket connectingSocket) throws IOException {
         connection = connectingSocket;
@@ -31,24 +35,17 @@ public class ServerWorker implements Runnable {
         timeFormat = DateTimeFormatter.RFC_1123_DATE_TIME;
 
         serverName = applicationName;
+        running = true;
+        hasInternalError = false;
         hasBadRequest = false;
         reqBodyLength = 0;
     }
 
-    private String readHTTPLine() throws IOException {
-        String top = requestStream.readLine();
-
-        if (top == null)
-            return "";
-        
-        return top.trim();
-    }
-
-    private long numberHTTPField(String field) {
-        long result;
+    private int numberHTTPField(String field) {
+        int result;
 
         try {
-            result = Long.parseLong(field);
+            result = Integer.parseInt(field);
         } catch (NumberFormatException parseError) {
             result = 0;
         }
@@ -56,98 +53,87 @@ public class ServerWorker implements Runnable {
         return result;
     }
 
-    private String[] splitHTTPField(String field) {
-        return field.trim().split(";");
-    }
-
-    private void ignoreHTTPBody(long length) throws IOException {
-        if (length == 0) {
-            return;
-        }
-
-        for (int i = 0; i < length; i++) {
-            int c = requestStream.read();
-
-            if (c == -1) {
-                break;
-            }
-        }
-    }
-
-    private void scanRemainder() throws IOException {
-        String tempLine;
-        String[] lineTokens;
-
-        // skip all headers except Content-Length for now!
-        do {
-            tempLine = readHTTPLine();
-
-            if (tempLine.isEmpty()) {
-                break;
-            }
-
-            // System.out.println(tempLine); // debug
-
-            lineTokens = tempLine.trim().split(":");
-
-            if (lineTokens[0].toLowerCase() == "content-length" && lineTokens.length > 1) {
-                reqBodyLength = numberHTTPField(lineTokens[1]);
-            }
-        } while (!tempLine.isEmpty());
-
-        ignoreHTTPBody(reqBodyLength);
-    }
-
     @Override
     public void run() {
-        try {
-            String requestStatus = readHTTPLine();
-            String[] statusTokens = requestStatus.split(" ");
-            System.out.println("Req: " + requestStatus); // debug
+        while (running) {
+            hasBadRequest = true;
+            
+            try {
+                SimpleRequest request = new SimpleRequest(requestStream);
+                
+                HTTPHeading heading = request.fetchHeading();
 
-            // ignore other parts of request except (Content-Length: ??)
-            scanRemainder();
+                HTTPMethod method = heading.fetchMethod(); // TODO: use this later for supported method checks.
+                HTTPHeader aHeader = request.fetchHeader();
 
-            // handle malformed or obsolete requests with 400: Bad Request
-            hasBadRequest = statusTokens.length != 3;
+                do {
+                    aHeader = request.fetchHeader();
 
-            if (hasBadRequest) {
-                SimpleResponse res = new SimpleResponse();
+                    // require host header
+                    if (aHeader.fetchName() == "host") {
+                        hasBadRequest = false;
+                    } else if (aHeader.fetchName() == "content-length") {
+                        reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
+                    }
+                    
+                } while(aHeader != null);
+                
+                // skip body for now
+                request.fetchBody(HTTPContentType.UNKNOWN, reqBodyLength);
 
-                res.addTop("HTTP/1.1", 400, "Bad Request");
-                res.addHeader("Server", serverName);
-                res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
-                res.addBody("");
+                // handle malformed requests with 400: Bad Request    
+                if (hasBadRequest) {
+                    SimpleResponse res = new SimpleResponse();
 
-                responseStream.write(res.asBytes());
-                responseStream.flush();
+                    res.addTop("HTTP/1.1", 400, "Bad Request");
+                    res.addHeader("Server", serverName);
+                    res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+                    res.addBody("");
+
+                    responseStream.write(res.asBytes());
+                    responseStream.flush();
+                } else {
+                    // otherwise, reply with HTTP/1.1 200 OK
+                    SimpleResponse res = new SimpleResponse();
+                
+                    res.addTop("HTTP/1.1", 200, "OK");
+                    res.addHeader("Server", serverName);
+                    res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+                    res.addHeader("Content-Type", "text/plain");
+                    res.addHeader("Content-Length", "11");
+                    res.addBody("Hello World");
+    
+                    responseStream.write(res.asBytes());
+                    responseStream.flush();
+                }
+            
                 connection.close();
-                return;
+            } catch (IOException ioError) {
+                System.err.println("ServerWorker: I/O Err: " + ioError);
+                hasInternalError = true;
+            } catch (Exception genError) {
+                System.err.println("ServerWorker: Err: " + genError);
+                hasInternalError = true;
+            } finally {
+                if (!hasInternalError) {
+                    continue;
+                }
+
+                try {
+                    SimpleResponse resFinal = new SimpleResponse();
+
+                    resFinal.addTop("HTTP/1.1", 500, "Internal Server Error");
+                    resFinal.addHeader("Server", serverName);
+                    resFinal.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+                    resFinal.addBody("");
+
+                    responseStream.write(resFinal.asBytes());
+                    responseStream.flush();
+                    responseStream.close();
+                } catch (IOException ioError) {
+                    running = false;
+                }
             }
-
-            reqMethod = statusTokens[0];
-            reqURL = statusTokens[1]; // note: for future use
-            reqHTTPVersion = statusTokens[2]; // note: for future use
-
-            // handle unsupported HTTP methods with 501: Not Implemented
-            //hasBadRequest = (reqMethod != "GET" && reqMethod != "HEAD");
-
-            // otherwise, reply with HTTP/1.1 204 No Content
-            SimpleResponse res = new SimpleResponse();
-
-            res.addTop("HTTP/1.1", 200, "OK");
-            res.addHeader("Server", serverName);
-            res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
-            res.addHeader("Content-Type", "text/plain");
-            res.addHeader("Content-Length", "11");
-            res.addBody("Hello World");
-
-            responseStream.write(res.asBytes());
-            responseStream.flush();
-
-            connection.close();
-        } catch (IOException ioError) {
-            System.err.println("ServerWorker: I/O Err: " + ioError);
         }
     }
 }
