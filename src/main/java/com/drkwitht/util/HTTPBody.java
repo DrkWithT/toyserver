@@ -15,9 +15,17 @@ public class HTTPBody {
             content = "";
         } else {
             type = typeCode;
-            length = contentText.length();
             content = contentText;
+            length = asBytes().length;
         }
+    }
+
+    public HTTPContentType fetchType() {
+        return type;
+    }
+
+    public int fetchLength() {
+        return length;
     }
 
     public String asText() {
