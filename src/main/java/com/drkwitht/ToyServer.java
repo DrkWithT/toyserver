@@ -34,7 +34,7 @@ public class ToyServer
             try {
                 entrySocket.close();
             } catch (IOException ioError) {
-                System.err.println("Closing Err:" + ioError);
+                connectionLogger.warning("Close err: " + ioError);
             }
         }
 
@@ -66,10 +66,6 @@ public class ToyServer
             backlog = 5;
         
         isListening = false;
-    }
-
-    public void toggleListenFlag() {
-        isListening = !isListening;
     }
 
     public void listen() throws IOException {
