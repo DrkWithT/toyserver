@@ -13,17 +13,16 @@ import com.drkwitht.util.HTTPContentType;
 import com.drkwitht.util.HTTPHeader;
 import com.drkwitht.util.HTTPHeading;
 import com.drkwitht.util.HTTPMethod;
+import com.drkwitht.util.ServiceIssue;
 
 public class ServerWorker implements Runnable {
     private Socket connection;
     private BufferedReader requestStream;
     private PrintStream responseStream;
-    
+
     private DateTimeFormatter timeFormat;
 
-    private boolean running;
-    private boolean hasInternalError;
-    private boolean hasBadRequest;
+    private ServiceIssue problemCode;
     private String serverName;
     private int reqBodyLength; // todo: use for req handling later
 
@@ -35,9 +34,7 @@ public class ServerWorker implements Runnable {
         timeFormat = DateTimeFormatter.RFC_1123_DATE_TIME;
 
         serverName = applicationName;
-        running = true;
-        hasInternalError = false;
-        hasBadRequest = true;
+        problemCode = ServiceIssue.BAD_REQUEST;
         reqBodyLength = 0;
     }
 
@@ -53,100 +50,121 @@ public class ServerWorker implements Runnable {
         return result;
     }
 
-    @Override
-    public void run() {
-        while (running) {   
-            try {
-                SimpleRequest request = new SimpleRequest(requestStream);
-                
-                HTTPHeading heading = request.fetchHeading(); // TODO: use this later for line below!
-
-                System.out.println("Heading: " + heading.fetchMethod() + ";" + heading.fetchURL() + ";" + heading.fetchVersion()); // DEBUG
-
-                // HTTPMethod method = heading.fetchMethod(); // TODO: use this later for supported method checks.
-                HTTPHeader aHeader = request.fetchHeader();
-
-                while(aHeader != null) {
-                    // stop header scanning at "Foo" (placeholder for empty HTTP line)
-                    if (aHeader.fetchName() == "foo") {
-                        break;
-                    }
-
-                    // require host header
-                    System.out.println("Scanning: " + aHeader.fetchName()); // DEBUG
-
-                    if (aHeader.fetchName().equals("Host")) {
-                        hasBadRequest = false;
-                    } else if (aHeader.fetchName().equals("Content-Length")) {
-                        reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
-                    }
-                    
-                    aHeader = request.fetchHeader();
-                };
-                
-                // skip body for now
-                request.fetchBody(HTTPContentType.UNKNOWN, reqBodyLength);
-
-                // handle malformed requests with 400: Bad Request    
-                if (hasBadRequest) {
-                    SimpleResponse res = new SimpleResponse();
-
-                    res.addTop("HTTP/1.1", 400, "Bad Request");
-                    res.addHeader("Server", serverName);
-                    res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
-                    res.addBody("");
-
-                    responseStream.write(res.asBytes());
-                    responseStream.flush();
-                } else {
-                    // otherwise, reply with HTTP/1.1 200 OK
-                    SimpleResponse res = new SimpleResponse();
-                
-                    res.addTop("HTTP/1.1", 200, "OK");
-                    res.addHeader("Server", serverName);
-                    res.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
-                    res.addHeader("Content-Type", "text/plain");
-                    res.addHeader("Content-Length", "11");
-                    res.addBody("Hello World");
-    
-                    responseStream.write(res.asBytes());
-                    responseStream.flush();
-                }
-
-                running = false;
-            } catch (IOException ioError) {
-                System.err.println("ServerWorker: I/O Err: " + ioError);
-                hasInternalError = true;
-            } catch (Exception genError) {
-                System.err.println("ServerWorker: Err: " + genError);
-                hasInternalError = true;
-            } finally {
-                if (!hasInternalError) {
-                    continue;
-                }
-
-                try {
-                    SimpleResponse resFinal = new SimpleResponse();
-
-                    resFinal.addTop("HTTP/1.1", 500, "Internal Server Error");
-                    resFinal.addHeader("Server", serverName);
-                    resFinal.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
-                    resFinal.addBody("");
-
-                    responseStream.write(resFinal.asBytes());
-                    responseStream.flush();
-                    responseStream.close();
-                } catch (IOException ioError) {
-                    running = false;
-                }
-            }
+    private SimpleResponse respondToIssues(ServiceIssue issueCode) {
+        int statusNumber = 200;
+        String statusMsg = "OK";
+        
+        switch (problemCode) {
+            case BAD_REQUEST:
+                statusNumber = 400;
+                statusMsg = "Bad Request"; // TODO: refactor status messages into a utility class?
+                break;
+            case NOT_FOUND:
+                statusNumber = 404;
+                statusMsg = "Not Found";
+                break;
+            case NO_SUPPORT:
+                statusNumber = 501;
+                statusMsg = "Method Not Supported";
+                break;
+            case UNKNOWN: // generic server error
+            default:
+                statusNumber = 500;
+                statusMsg = "Internal Server Error";
+                break;
         }
 
-        // attempt to close connection on fatal error
+        SimpleResponse response = new SimpleResponse();
+
+        response.addTop("HTTP/1.1", statusNumber, statusMsg);
+        response.addHeader("Server", serverName);
+        response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+        response.addBody("");
+
+        return response;
+    }
+
+    private SimpleResponse respondNormal(HTTPMethod method, String routingPath) {
+        boolean methodSupported = method == HTTPMethod.GET; // TODO: add HEAD support!
+        boolean pathValid = !routingPath.contains("favicon");
+
+        if (!methodSupported)
+            return respondToIssues(ServiceIssue.NO_SUPPORT); // TODO: add more checks (eg. bad URLs)
+        
+        if (!pathValid)
+            return respondToIssues(ServiceIssue.NOT_FOUND); // TODO: add favicon serving?
+        
+        final String testHTML = "<html><head><title>A Page</title></head><body><p>Hello!</p></body></html>";
+
+        SimpleResponse response = new SimpleResponse();
+        response.addTop("HTTP/1.1", 200, "OK");
+        response.addHeader("Server", serverName);
+        response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+        response.addHeader("Content-Type", "text/html");
+        response.addHeader("Content-Length", "" + testHTML.length());
+        response.addBody(testHTML);
+
+        return response;
+    }
+
+    @Override
+    public void run() {
         try {
-            connection.close();
+            SimpleRequest request = new SimpleRequest(requestStream);
+
+            HTTPHeading heading = request.fetchHeading();
+            
+            HTTPMethod method = heading.fetchMethod();
+            String staticPath = heading.fetchURL().getPath();
+            String httpName = heading.fetchVersion();
+
+            System.out.println(
+                    "Heading:\nmethod=" + method
+                    + "\nURL.path=" + staticPath
+                    + "\nprotocol=" + httpName); // DEBUG
+
+            HTTPHeader aHeader = request.fetchHeader();
+
+            while (aHeader != null) {
+                // stop header scanning at "Foo" (placeholder for empty HTTP line)
+                if (aHeader.fetchName() == "foo") {
+                    break;
+                }
+
+                // require Host header
+                if (aHeader.fetchName().equals("Host")) {
+                    problemCode = ServiceIssue.NONE;
+                } else if (aHeader.fetchName().equals("Content-Length")) {
+                    reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
+                }
+
+                aHeader = request.fetchHeader();
+            }
+
+            // skip body for now
+            request.fetchBody(HTTPContentType.UNKNOWN, reqBodyLength);
+
+            // handle good or bad requests here
+            SimpleResponse res;
+
+            if (problemCode == ServiceIssue.NONE) {
+                res = respondNormal(method, staticPath);
+            } else {
+                res = respondToIssues(problemCode);
+            }
+
+            responseStream.write(res.asBytes());
         } catch (IOException ioError) {
-            System.err.println("Server Worker: Closing Err: " + ioError);
+            System.err.println("ServerWorker: I/O Err: " + ioError);
+        } catch (Exception genError) {
+            System.err.println("ServerWorker: Err: " + genError);
+        } finally {
+            // attempt to send final ACK by closing anyways...
+            try {
+                connection.close();
+            } catch (IOException ioError) {
+                System.err.println("Server Worker: Closing Err: " + ioError);
+            }
         }
     }
 }
