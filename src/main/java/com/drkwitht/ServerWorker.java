@@ -89,7 +89,7 @@ public class ServerWorker implements Runnable {
 
     private SimpleResponse respondNormal(HTTPMethod method, String routingPath) {
         boolean methodSupported = method == HTTPMethod.GET; // TODO: add HEAD support!
-        boolean pathValid = routingPath.charAt(0) == '/' && !routingPath.contains("favicon");
+        boolean pathValid = routingPath.charAt(0) == '/' && !routingPath.contains("favicon.ico");
 
         if (!methodSupported)
             return respondToIssues(ServiceIssue.NO_SUPPORT); // TODO: add more checks (eg. bad URLs)
@@ -118,12 +118,12 @@ public class ServerWorker implements Runnable {
             HTTPHeading heading = request.fetchHeading();
             
             HTTPMethod method = heading.fetchMethod();
-            String staticPath = heading.fetchURL().getPath();
+            String relURL = heading.fetchURL();
             String httpName = heading.fetchVersion();
 
             workerLogger.info(
                     "Heading:\nmethod=" + method
-                    + "\nURL.path=" + staticPath
+                    + "\nrelative_url=" + relURL
                     + "\nprotocol=" + httpName); // DEBUG
 
             HTTPHeader aHeader = request.fetchHeader();
@@ -151,7 +151,7 @@ public class ServerWorker implements Runnable {
             SimpleResponse res;
 
             if (problemCode == ServiceIssue.NONE) {
-                res = respondNormal(method, staticPath);
+                res = respondNormal(method, relURL);
             } else {
                 res = respondToIssues(problemCode);
             }
