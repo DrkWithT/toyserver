@@ -2,6 +2,7 @@ package com.drkwitht;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.logging.Logger;
 import java.io.IOException;
 
 /**
@@ -21,9 +22,11 @@ public class ToyServer
     // Acceptor
     private class ConnectionEntry implements Runnable {
         // connection entry point
+        private Logger connectionLogger;
         ServerSocket entrySocket;
 
         public ConnectionEntry(int portNumber, int backlogCount) throws IOException {
+            connectionLogger = Logger.getLogger(this.getClass().getName());
             entrySocket = new ServerSocket(portNumber, backlogCount);
         }
 
@@ -42,10 +45,8 @@ public class ToyServer
                     Socket connection = entrySocket.accept();
 
                     new Thread(new ServerWorker(APP_NAME, connection)).start();
-
-                    System.out.println("Started worker.");
                 } catch (IOException ioError) {
-                    System.err.println("Connection Err: " + ioError);
+                    connectionLogger.warning("Connect err: " + ioError);
                 }
             }
 

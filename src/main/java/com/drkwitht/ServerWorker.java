@@ -8,6 +8,7 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.logging.Logger;
 
 import com.drkwitht.util.HTTPContentType;
 import com.drkwitht.util.HTTPHeader;
@@ -21,6 +22,7 @@ public class ServerWorker implements Runnable {
     private PrintStream responseStream;
 
     private DateTimeFormatter timeFormat;
+    private Logger workerLogger;
 
     private ServiceIssue problemCode;
     private String serverName;
@@ -32,6 +34,7 @@ public class ServerWorker implements Runnable {
         responseStream = new PrintStream(new BufferedOutputStream(connection.getOutputStream()));
 
         timeFormat = DateTimeFormatter.RFC_1123_DATE_TIME;
+        workerLogger = Logger.getLogger(this.getClass().getName());
 
         serverName = applicationName;
         problemCode = ServiceIssue.BAD_REQUEST;
@@ -86,7 +89,7 @@ public class ServerWorker implements Runnable {
 
     private SimpleResponse respondNormal(HTTPMethod method, String routingPath) {
         boolean methodSupported = method == HTTPMethod.GET; // TODO: add HEAD support!
-        boolean pathValid = !routingPath.contains("favicon");
+        boolean pathValid = routingPath.charAt(0) == '/' && !routingPath.contains("favicon");
 
         if (!methodSupported)
             return respondToIssues(ServiceIssue.NO_SUPPORT); // TODO: add more checks (eg. bad URLs)
@@ -118,7 +121,7 @@ public class ServerWorker implements Runnable {
             String staticPath = heading.fetchURL().getPath();
             String httpName = heading.fetchVersion();
 
-            System.out.println(
+            workerLogger.info(
                     "Heading:\nmethod=" + method
                     + "\nURL.path=" + staticPath
                     + "\nprotocol=" + httpName); // DEBUG
@@ -155,15 +158,15 @@ public class ServerWorker implements Runnable {
 
             responseStream.write(res.asBytes());
         } catch (IOException ioError) {
-            System.err.println("ServerWorker: I/O Err: " + ioError);
+            workerLogger.warning("ServerWorker: " + ioError);
         } catch (Exception genError) {
-            System.err.println("ServerWorker: Err: " + genError);
+            workerLogger.warning("ServerWorker: " + genError);
         } finally {
             // attempt to send final ACK by closing anyways...
             try {
                 connection.close();
             } catch (IOException ioError) {
-                System.err.println("Server Worker: Closing Err: " + ioError);
+                workerLogger.warning("Server Worker: " + ioError);
             }
         }
     }
