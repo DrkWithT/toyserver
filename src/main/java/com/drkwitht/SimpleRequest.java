@@ -43,7 +43,7 @@ public class SimpleRequest {
         String rawLine = requestStream.readLine();
 
         if (rawLine == null) {
-            return null;
+            return new HTTPHeading(HTTPMethod.HEAD, "/", "HTTP/1.1"); // default as HEAD request!
         }
 
         String[] tokens = rawLine.split(" ");
