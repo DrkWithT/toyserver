@@ -7,12 +7,12 @@ import java.io.IOException;
 
 /**
  * ToyServer.java
- * This is the driver class containing the static HTTP server's main logic.
+ * This is the driver class containing the static HTTP server's main logic. The server will launch a parallel worker thread for each connection request by TCP. Each HTTP response is handled over the same server socket connection. See the README for more details.
  * @author Derek Tan
  */
 public class ToyServer
 {
-    private static final String APP_NAME = "ToyServer/0.1";
+    private static final String APP_NAME = "ToyServer/0.3";
 
     /// Data
     private int port;
