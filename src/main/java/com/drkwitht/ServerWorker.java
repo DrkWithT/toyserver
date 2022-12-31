@@ -16,6 +16,9 @@ import com.drkwitht.util.HTTPHeading;
 import com.drkwitht.util.HTTPMethod;
 import com.drkwitht.util.ServiceIssue;
 
+/**
+ * This is the runnable that is encapsulated in a worker thread for the server. A request is handled over a persistent server socket's connections. Request data is checked for basic HTTP syntax, valid methods and routes, and then for any <code>IOException</code>.
+ */
 public class ServerWorker implements Runnable {
     private Socket connection;
     private BufferedReader requestStream;
@@ -56,11 +59,11 @@ public class ServerWorker implements Runnable {
     private SimpleResponse respondToIssues(ServiceIssue issueCode) {
         int statusNumber = 200;
         String statusMsg = "OK";
-        
-        switch (problemCode) {
+
+        switch (issueCode) {
             case BAD_REQUEST:
                 statusNumber = 400;
-                statusMsg = "Bad Request"; // TODO: refactor status messages into a utility class?
+                statusMsg = "Bad Request";
                 break;
             case NOT_FOUND:
                 statusNumber = 404;
@@ -92,12 +95,12 @@ public class ServerWorker implements Runnable {
         boolean pathValid = routingPath.charAt(0) == '/' && !routingPath.contains("favicon.ico");
 
         if (!methodSupported)
-            return respondToIssues(ServiceIssue.NO_SUPPORT); // TODO: add more checks (eg. bad URLs)
+            return respondToIssues(ServiceIssue.NO_SUPPORT);
         
         if (!pathValid)
             return respondToIssues(ServiceIssue.NOT_FOUND); // TODO: add favicon serving?
         
-        final String testHTML = "<html><head><title>A Page</title></head><body><p>Hello!</p></body></html>";
+        final String testHTML = "<html><head><title>A Page</title></head><body><p>Hello!</p></body></html>"; // TODO: refactor HTML into file fetcher class?
 
         SimpleResponse response = new SimpleResponse();
         response.addTop("HTTP/1.1", 200, "OK");
@@ -119,12 +122,7 @@ public class ServerWorker implements Runnable {
             
             HTTPMethod method = heading.fetchMethod();
             String relURL = heading.fetchURL();
-            String httpName = heading.fetchVersion();
-
-            workerLogger.info(
-                    "Heading:\nmethod=" + method
-                    + "\nrelative_url=" + relURL
-                    + "\nprotocol=" + httpName); // DEBUG
+            //String httpName = heading.fetchVersion();
 
             HTTPHeader aHeader = request.fetchHeader();
 
@@ -157,17 +155,19 @@ public class ServerWorker implements Runnable {
             }
 
             responseStream.write(res.asBytes());
+            responseStream.flush();
+
         } catch (IOException ioError) {
-            workerLogger.warning("ServerWorker: " + ioError);
+            workerLogger.warning(ioError.toString());
         } catch (Exception genError) {
-            workerLogger.warning("ServerWorker: " + genError);
-        } finally {
-            // attempt to send final ACK by closing anyways...
-            try {
-                connection.close();
-            } catch (IOException ioError) {
-                workerLogger.warning("Server Worker: " + ioError);
-            }
+            workerLogger.warning(genError.toString());
+        }
+        
+        // attempt to send final ACK by closing anyways...
+        try {
+            connection.close();
+        } catch (IOException ioError) {
+            workerLogger.warning(ioError.toString());
         }
     }
 }
