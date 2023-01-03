@@ -8,6 +8,7 @@ import java.io.PrintStream;
 import java.net.Socket;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.drkwitht.util.HTTPBody;
@@ -47,6 +48,7 @@ public class ServerWorker implements Runnable {
 
         timeFormat = DateTimeFormatter.RFC_1123_DATE_TIME;
         workerLogger = Logger.getLogger(this.getClass().getName());
+        workerLogger.setLevel(Level.ALL);
 
         request = null;
         reqHeading = null;
@@ -76,19 +78,14 @@ public class ServerWorker implements Runnable {
         boolean hasHostHeader = false;
         HTTPHeader aHeader = request.fetchHeader();
         
-        while (aHeader != null) {
-            // stop header scanning at "Foo" (placeholder for empty HTTP line)
-            if (aHeader.fetchName() == "foo") {
-                break;
-            }
-
+        while (!aHeader.fetchName().equals("foo")) {
             // require Host header
             if (aHeader.fetchName().equals("Host")) {
                 hasHostHeader = true;
             } else if (aHeader.fetchName().equals("Content-Length")) {
                 reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
             } else if (aHeader.fetchName().equals("Connection")) {
-                hasKeepAlive = aHeader.fetchValueAt(0).toLowerCase().equals("keep-alive");
+                hasKeepAlive = aHeader.fetchValueAt(0).matches("keep-alive") || aHeader.fetchValueAt(0).equals("Keep-Alive");
             }
 
             aHeader = request.fetchHeader();
@@ -132,6 +129,7 @@ public class ServerWorker implements Runnable {
         response.addTop("HTTP/1.1", statusNumber, statusMsg);
         response.addHeader("Server", serverName);
         response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+        response.addHeader("Connection", "Keep-Alive");
         response.addBody("");
 
         return response;
@@ -153,6 +151,7 @@ public class ServerWorker implements Runnable {
         response.addTop("HTTP/1.1", 200, "OK");
         response.addHeader("Server", serverName);
         response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
+        response.addHeader("Connection", "Keep-Alive");
         response.addHeader("Content-Type", "text/html");
         response.addHeader("Content-Length", "" + testHTML.length());
         response.addBody(testHTML);
@@ -162,6 +161,7 @@ public class ServerWorker implements Runnable {
 
     private void handleRespondState() throws IOException {
         if (penaltyCount > 1) {
+            workerLogger.info("Ending from excess penalties."); // debug
             state = ServiceState.STOP;
             return;
         }
@@ -172,9 +172,19 @@ public class ServerWorker implements Runnable {
             responseStream.write(respondAbnormal(problemCode).asBytes());
         }
 
+        responseStream.flush();
+
+        if (connection.isClosed()) {
+            workerLogger.info("Stopping from possible timeout."); // debug
+            state = ServiceState.STOP;
+            return;
+        }
+
         if (!hasKeepAlive) {
+            workerLogger.info("Ending normally."); // debug
             state = ServiceState.STOP;
         } else {
+            workerLogger.info("Continuing normally."); // debug
             state = ServiceState.GET_REQUEST;
         }
     }
@@ -202,12 +212,16 @@ public class ServerWorker implements Runnable {
                         break;
                     case GET_BODY:
                         reqBody = request.fetchBody(HTTPContentType.UNKNOWN, reqBodyLength);
+                        state = ServiceState.RESPOND;
                         break;
                     case RESPOND:
                         handleRespondState();
                         break;
                     case STOP:
+                        workerLogger.info("State: STOP");
+                        break;
                     default:
+                        state = ServiceState.STOP;
                         break;
                 }
             } catch (IOException ioEx) {
@@ -221,12 +235,11 @@ public class ServerWorker implements Runnable {
                 state = ServiceState.RESPOND;
                 penaltyCount++; // track server err count for stopping infinite loop
             }
-
-            break;
         }
 
         // close connection when worker has finish state
         try {
+            workerLogger.info("Stopped worker.");
             connection.close();
         } catch (IOException ioEx) {
             workerLogger.warning(ioEx.toString());
