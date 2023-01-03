@@ -12,14 +12,17 @@ import java.io.IOException;
  */
 public class ToyServer
 {
-    private static final String APP_NAME = "ToyServer/0.3";
+    private static final String APP_NAME = "ToyServer/0.4";
 
     /// Data
     private int port;
     private int backlog; 
     private boolean isListening;
     
-    // Acceptor
+    /**
+     * This special runnable class spawns 1 worker thread per successful connection. However, the conection queue is low to prevent excess worker thread count since this server is a toy.
+     * @author Derek Tan
+     */
     private class ConnectionEntry implements Runnable {
         // connection entry point
         private Logger connectionLogger;
