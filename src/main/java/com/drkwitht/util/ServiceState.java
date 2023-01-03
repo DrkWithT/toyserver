@@ -5,7 +5,7 @@ package com.drkwitht.util;
  */
 public enum ServiceState {
     START,
-    AWAIT_REQUEST,
+    GET_REQUEST,
     GET_HEADING,
     GET_HEADERS,
     GET_BODY,
