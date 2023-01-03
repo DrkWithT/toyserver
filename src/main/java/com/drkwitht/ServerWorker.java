@@ -160,13 +160,18 @@ public class ServerWorker implements Runnable {
     }
 
     private void handleRespondState() throws IOException {
+        if (penaltyCount > 1) {
+            state = ServiceState.STOP;
+            return;
+        }
+
         if (problemCode == ServiceIssue.NONE) {
             responseStream.write(respondNormal(reqHeading.fetchMethod(), reqHeading.fetchURL()).asBytes());
         } else {
             responseStream.write(respondAbnormal(problemCode).asBytes());
         }
 
-        if (!hasKeepAlive || penaltyCount > 1) {
+        if (!hasKeepAlive) {
             state = ServiceState.STOP;
         } else {
             state = ServiceState.GET_REQUEST;
@@ -208,7 +213,7 @@ public class ServerWorker implements Runnable {
                 workerLogger.warning(ioEx.toString());
                 problemCode = ServiceIssue.UNKNOWN;
                 state = ServiceState.RESPOND;
-                penaltyCount++;
+                penaltyCount++; // see next comment
             } catch (Exception basicEx) {
                 workerLogger.warning(basicEx.toString());
                 problemCode = ServiceIssue.UNKNOWN;
