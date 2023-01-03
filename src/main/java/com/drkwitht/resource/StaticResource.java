@@ -43,6 +43,8 @@ public class StaticResource {
             throw new Exception("Failed to pre-read resource file.");
         }
 
+        fReader.close();
+
         StringBuilder sb = new StringBuilder();
         sb.append(buffer);
         rawData = sb.toString();
