@@ -48,14 +48,14 @@ public class SimpleRequest {
 
         String[] tokens = rawLine.split(" ");
 
-        return new HTTPHeading(decodeMethod(tokens[0]), tokens[1], tokens[2]);
+        return new HTTPHeading(decodeMethod(tokens[0].trim()), tokens[1].trim(), tokens[2].trim());
     }
 
     public HTTPHeader fetchHeader() throws IOException {
         String rawLine = requestStream.readLine();
 
         if (rawLine == null) {
-            return null;
+            return new HTTPHeader("foo", "none");
         }
 
         if (rawLine.isBlank()) {
@@ -64,7 +64,7 @@ public class SimpleRequest {
 
         String[] tokens = rawLine.trim().split(":");
 
-        return new HTTPHeader(tokens[0], tokens[1]);
+        return new HTTPHeader(tokens[0].trim(), tokens[1].trim());
     }
 
     public HTTPBody fetchBody(HTTPContentType type, int contentLength) throws IOException, Exception {
