@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
@@ -43,6 +44,7 @@ public class ServerWorker implements Runnable {
 
     public ServerWorker(String applicationName, Socket connectingSocket) throws IOException {
         connection = connectingSocket;
+        connection.setSoTimeout(30000); // timeout: 30s is a kludge for stale connections!
         requestStream = new BufferedReader(new InputStreamReader(connection.getInputStream()));
         responseStream = new PrintStream(new BufferedOutputStream(connection.getOutputStream()));
 
@@ -86,6 +88,7 @@ public class ServerWorker implements Runnable {
                 reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
             } else if (aHeader.fetchName().equals("Connection")) {
                 hasKeepAlive = aHeader.fetchValueAt(0).matches("keep-alive") || aHeader.fetchValueAt(0).equals("Keep-Alive");
+                workerLogger.info("keep-alive=" + hasKeepAlive);
             }
 
             aHeader = request.fetchHeader();
@@ -174,12 +177,6 @@ public class ServerWorker implements Runnable {
 
         responseStream.flush();
 
-        if (connection.isClosed()) {
-            workerLogger.info("Stopping from possible timeout."); // debug
-            state = ServiceState.STOP;
-            return;
-        }
-
         if (!hasKeepAlive) {
             workerLogger.info("Ending normally."); // debug
             state = ServiceState.STOP;
@@ -224,6 +221,11 @@ public class ServerWorker implements Runnable {
                         state = ServiceState.STOP;
                         break;
                 }
+            } catch(SocketTimeoutException timeoutEx) {
+                workerLogger.info("Timeout!");
+                problemCode = ServiceIssue.NONE;
+                state = ServiceState.STOP;
+                penaltyCount++;
             } catch (IOException ioEx) {
                 workerLogger.warning(ioEx.toString());
                 problemCode = ServiceIssue.UNKNOWN;
@@ -240,6 +242,7 @@ public class ServerWorker implements Runnable {
         // close connection when worker has finish state
         try {
             workerLogger.info("Stopped worker.");
+            responseStream.flush();
             connection.close();
         } catch (IOException ioEx) {
             workerLogger.warning(ioEx.toString());
