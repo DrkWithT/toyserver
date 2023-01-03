@@ -6,11 +6,12 @@ This Java repo contains files and code for a toy _HTTP 1.1_ server. The server i
 
 ### References:
  - Ensure compliance with other HTTP/1.1 requirements based on this link: [HTTP Made Really Easy](https://www.jmarshall.com/easy/http/#http1.1s1)
+ - RFC 9110: _HTTP Semantics_
 
 ### Project Roadmap:
- 1. Create basic worker and HTTP request-response classes. (WIP)
+ 1. Create basic worker and HTTP request-response classes. (DONE)
     - Create and integrate a request handler class!
- 2. Support persistent / non-persistent connections. (WIP)
+ 2. Support persistent / non-persistent connections. (DONE FOR NOW)
  3. Rewrite server resource code.
  4. Add HEAD method support.
  5. Support `100 Continue` responses.
