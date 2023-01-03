@@ -84,10 +84,10 @@ public class ToyServer
     public static void main( String[] args )
     {
         try {
-            ToyServer app = new ToyServer(5000, 5);
+            ToyServer app = new ToyServer(8080, 5);
             app.listen();
-        } catch (IOException listenError) {
-            System.err.println("Failed to launch server.");
+        } catch (IOException listenEx) {
+            System.err.println("Failed to launch server: " + listenEx);
         }
     }
 }
