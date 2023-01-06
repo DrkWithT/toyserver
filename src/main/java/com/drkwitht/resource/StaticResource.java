@@ -56,6 +56,10 @@ public class StaticResource {
         }
     }
 
+    public int fetchLength() {
+        return length;
+    }
+
     public String asText() {
         return rawData;
     }

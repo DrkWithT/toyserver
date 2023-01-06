@@ -158,6 +158,7 @@ public class ServerWorker implements Runnable {
             if (staticResponder.hasRoute(routingPath)) {
                 pathMatched = true;
                 resource = staticResponder.yieldResource();
+                break;
             }
         }
         
@@ -172,7 +173,7 @@ public class ServerWorker implements Runnable {
         response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
         response.addHeader("Connection", "Keep-Alive");
         response.addHeader("Content-Type", resource.fetchMIMEType());
-        response.addHeader("Content-Length", "" + resource.asText().length()); // I only use ASCII ranged characters in my HTML or text responses... Thus, I can use string length rather than byte count.
+        response.addHeader("Content-Length", "" + resource.fetchLength()); // I only use ASCII ranged characters in my HTML or text responses... Thus, I can use string length rather than byte count.
         response.addBody(resource.asText());
 
         return response;
