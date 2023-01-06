@@ -24,7 +24,7 @@ import com.drkwitht.util.ServiceIssue;
 import com.drkwitht.util.ServiceState;
 
 /**
- * This is the runnable logic class that is created for a server worker thread. A request is handled over a persistent server socket's connections. Request data is checked for basic HTTP syntax, valid methods and routes, and then for any <code>IOException</code>. State advances through request handling stages, but skips to RESPOND on any internal server exception for status-500 responses. Finally, an excess error count will result in the worker closing. This prevents misbehaving clients from stalling the worker loop.
+ * This is the runnable logic class that is created for a server worker thread. A request is handled over a persistent server socket's connections. Request data is checked for basic HTTP syntax, valid methods and routes, and then for any <code>IOException</code>. State advances through request handling stages, but skips to RESPOND on any internal server exception for status-500 responses. Finally, an excess error count or socket timeout will result in the worker closing. This prevents stalling of the worker loop.
  * @author Derek Tan
  */
 public class ServerWorker implements Runnable {
@@ -37,7 +37,7 @@ public class ServerWorker implements Runnable {
     private ArrayList<StaticResponder> routedHandlers; // handlers for requests by route
     private SimpleRequest request;
     private HTTPHeading reqHeading;
-    private HTTPBody reqBody; // TODO: process later for more advanced requests
+    private HTTPBody reqBody; // TODO: process for POST requests?
 
     private ServiceState state;       // service state
     private ServiceIssue problemCode; // client or server problem code

@@ -8,7 +8,7 @@ import java.io.IOException;
 import com.drkwitht.util.HTTPContentType;
 
 /**
- * Encapsulates data of any static resource file, given supported MIME type and a valid local file path.
+ * Encapsulates data of any static resource file, given supported MIME type and a valid local file path. Contains helper methods for getting content length or content in various forms such as bytes.
  */
 public class StaticResource {
     private HTTPContentType type; // MIME content type code 
@@ -18,6 +18,10 @@ public class StaticResource {
 
     public StaticResource(HTTPContentType contentType, String filePath) throws FileNotFoundException, IOException {
         type = contentType;
+
+        if (filePath == null) {
+            throw new FileNotFoundException("Cannot find file on null path.");
+        }
 
         truePath = filePath;
 
@@ -39,8 +43,6 @@ public class StaticResource {
 
         StringBuilder sb = new StringBuilder();
         rawData = sb.append(buffer).toString();
-        
-        length = asBytes().length;
     }
 
     public String fetchMIMEType() {
