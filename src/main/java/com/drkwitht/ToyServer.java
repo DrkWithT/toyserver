@@ -2,7 +2,13 @@ package com.drkwitht;
 
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.logging.Logger;
+
+import com.drkwitht.resource.StaticResource;
+import com.drkwitht.resource.StaticResponder;
+import com.drkwitht.util.HTTPContentType;
+
 import java.io.IOException;
 
 /**
@@ -13,6 +19,9 @@ import java.io.IOException;
 public class ToyServer
 {
     private static final String APP_NAME = "ToyServer/0.4";
+
+    // Objects
+    ArrayList<StaticResponder> handlers;
 
     /// Data
     private int port;
@@ -47,7 +56,7 @@ public class ToyServer
                 try {
                     Socket connection = entrySocket.accept();
 
-                    new Thread(new ServerWorker(APP_NAME, connection)).start();
+                    new Thread(new ServerWorker(APP_NAME, connection, handlers)).start();
                 } catch (IOException ioError) {
                     connectionLogger.warning("Connect err: " + ioError);
                 }
@@ -57,7 +66,7 @@ public class ToyServer
         }
     }
 
-    public ToyServer(int portNumber, int backlogCount) {
+    public ToyServer(int portNumber, int backlogCount, ArrayList<StaticResponder> contentHandlers) {
         if (port >= 0 && port < 65536)
             port = portNumber;
         else
@@ -69,6 +78,8 @@ public class ToyServer
             backlog = 5;
         
         isListening = false;
+
+        handlers = contentHandlers;
     }
 
     public void listen() throws IOException {
@@ -84,10 +95,15 @@ public class ToyServer
     public static void main( String[] args )
     {
         try {
-            ToyServer app = new ToyServer(8080, 5);
+            ArrayList<StaticResponder> responders = new ArrayList<>();
+            responders.add(new StaticResponder(new String[]{"/"}, new StaticResource(HTTPContentType.TEXT_HTML, "/static/test1.html")));
+
+            ToyServer app = new ToyServer(8080, 5, responders);
             app.listen();
         } catch (IOException listenEx) {
             System.err.println("Failed to launch server: " + listenEx);
+        } catch (Exception otherEx) {
+            System.err.println("Failed to initialize handlers: " + otherEx);
         }
     }
 }

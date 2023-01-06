@@ -9,9 +9,12 @@ import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.drkwitht.resource.StaticResource;
+import com.drkwitht.resource.StaticResponder;
 import com.drkwitht.util.HTTPBody;
 import com.drkwitht.util.HTTPContentType;
 import com.drkwitht.util.HTTPHeader;
@@ -31,18 +34,20 @@ public class ServerWorker implements Runnable {
     private DateTimeFormatter timeFormat; // GMT date generator
     private Logger workerLogger;          // debug message printer
 
+    private ArrayList<StaticResponder> routedHandlers; // handlers for requests by route
     private SimpleRequest request;
     private HTTPHeading reqHeading;
-    private HTTPBody reqBody;         // TODO: process later for more advanced requests
+    private HTTPBody reqBody; // TODO: process later for more advanced requests
 
     private ServiceState state;       // service state
     private ServiceIssue problemCode; // client or server problem code
     private int penaltyCount;         // deadly server exception count (2+ means stop!)
+
     boolean hasKeepAlive;             // persistent connection flag
     private String serverName;        // server software name
     private int reqBodyLength;        // req body byte count
 
-    public ServerWorker(String applicationName, Socket connectingSocket) throws IOException {
+    public ServerWorker(String applicationName, Socket connectingSocket, ArrayList<StaticResponder> handlers) throws IOException {
         connection = connectingSocket;
         connection.setSoTimeout(30000); // timeout: 30s is a kludge for stale connections!
         requestStream = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -52,6 +57,7 @@ public class ServerWorker implements Runnable {
         workerLogger = Logger.getLogger(this.getClass().getName());
         workerLogger.setLevel(Level.ALL);
 
+        routedHandlers = handlers;
         request = null;
         reqHeading = null;
         reqBody = null;
@@ -88,7 +94,6 @@ public class ServerWorker implements Runnable {
                 reqBodyLength = numberHTTPField(aHeader.fetchValueAt(0));
             } else if (aHeader.fetchName().equals("Connection")) {
                 hasKeepAlive = aHeader.fetchValueAt(0).matches("keep-alive") || aHeader.fetchValueAt(0).equals("Keep-Alive");
-                workerLogger.info("keep-alive=" + hasKeepAlive);
             }
 
             aHeader = request.fetchHeader();
@@ -103,11 +108,11 @@ public class ServerWorker implements Runnable {
         }
     }
 
-    private SimpleResponse respondAbnormal(ServiceIssue issueCode) {
+    private SimpleResponse respondAbnormal() {
         int statusNumber = 200;
         String statusMsg = "OK";
 
-        switch (issueCode) {
+        switch (problemCode) {
             case BAD_REQUEST:
                 statusNumber = 400;
                 statusMsg = "Bad Request";
@@ -140,24 +145,35 @@ public class ServerWorker implements Runnable {
 
     private SimpleResponse respondNormal(HTTPMethod method, String routingPath) {
         boolean methodSupported = method == HTTPMethod.GET; // TODO: add HEAD support!
-        boolean pathValid = routingPath.charAt(0) == '/' && !routingPath.contains("favicon.ico");
+        boolean pathMatched = false;
+        StaticResource resource = null;
 
-        if (!methodSupported)
-            return respondAbnormal(ServiceIssue.NO_SUPPORT);
+        if (!methodSupported) {
+            problemCode = ServiceIssue.NO_SUPPORT;
+            return respondAbnormal();
+        }
         
-        if (!pathValid)
-            return respondAbnormal(ServiceIssue.NOT_FOUND); // TODO: add favicon serving?
         
-        final String testHTML = "<html><head><title>A Page</title></head><body><p>Hello!</p></body></html>"; // TODO: refactor HTML into file fetcher class?
+        for (StaticResponder staticResponder : routedHandlers) {
+            if (staticResponder.hasRoute(routingPath)) {
+                pathMatched = true;
+                resource = staticResponder.yieldResource();
+            }
+        }
+        
+        if (!pathMatched) {
+            problemCode = ServiceIssue.NOT_FOUND;
+            return respondAbnormal();
+        }
 
         SimpleResponse response = new SimpleResponse();
         response.addTop("HTTP/1.1", 200, "OK");
         response.addHeader("Server", serverName);
         response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
         response.addHeader("Connection", "Keep-Alive");
-        response.addHeader("Content-Type", "text/html");
-        response.addHeader("Content-Length", "" + testHTML.length());
-        response.addBody(testHTML);
+        response.addHeader("Content-Type", resource.fetchMIMEType());
+        response.addHeader("Content-Length", "" + resource.asText().length()); // I only use ASCII ranged characters in my HTML or text responses... Thus, I can use string length rather than byte count.
+        response.addBody(resource.asText());
 
         return response;
     }
@@ -170,9 +186,9 @@ public class ServerWorker implements Runnable {
         }
 
         if (problemCode == ServiceIssue.NONE) {
-            responseStream.write(respondNormal(reqHeading.fetchMethod(), reqHeading.fetchURL()).asBytes());
+            responseStream.write(respondNormal(reqHeading.fetchMethod(), reqHeading.fetchURI()).asBytes());
         } else {
-            responseStream.write(respondAbnormal(problemCode).asBytes());
+            responseStream.write(respondAbnormal().asBytes());
         }
 
         responseStream.flush();
