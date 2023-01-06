@@ -10,7 +10,7 @@ public class HTTPBody {
 
     public HTTPBody(HTTPContentType typeCode, String contentText) {
         if (contentText == null) {
-            type = HTTPContentType.UNKNOWN;
+            type = HTTPContentType.TEXT_PLAIN;
             length = 0;
             content = "";
         } else {

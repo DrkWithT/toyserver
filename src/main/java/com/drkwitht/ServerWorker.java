@@ -208,7 +208,7 @@ public class ServerWorker implements Runnable {
                         handleHeaderState();
                         break;
                     case GET_BODY:
-                        reqBody = request.fetchBody(HTTPContentType.UNKNOWN, reqBodyLength);
+                        reqBody = request.fetchBody(HTTPContentType.TEXT_PLAIN, reqBodyLength);
                         state = ServiceState.RESPOND;
                         break;
                     case RESPOND:

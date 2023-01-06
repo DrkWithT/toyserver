@@ -75,7 +75,7 @@ public class SimpleRequest {
         char[] rawData = new char[contentLength];
         
         if(requestStream.read(rawData, 0, contentLength) == -1) {
-            return new HTTPBody(HTTPContentType.UNKNOWN, null);
+            return new HTTPBody(HTTPContentType.TEXT_PLAIN, null);
         }
         
         return new HTTPBody(type, String.valueOf(rawData));

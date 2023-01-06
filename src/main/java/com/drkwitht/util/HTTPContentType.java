@@ -6,6 +6,5 @@ package com.drkwitht.util;
 public enum HTTPContentType {
     TEXT_PLAIN,
     TEXT_HTML,
-    TEXT_CSS,
-    UNKNOWN
+    TEXT_CSS
 }
