@@ -104,6 +104,7 @@ public class ServerWorker implements Runnable {
             state = ServiceState.GET_BODY;
         } else {
             problemCode = ServiceIssue.BAD_REQUEST;
+            penaltyCount++;
             state = ServiceState.RESPOND;
         }
     }
@@ -153,7 +154,6 @@ public class ServerWorker implements Runnable {
             return respondAbnormal();
         }
         
-        
         for (StaticResponder staticResponder : routedHandlers) {
             if (staticResponder.hasRoute(routingPath)) {
                 pathMatched = true;
@@ -187,12 +187,16 @@ public class ServerWorker implements Runnable {
         }
 
         if (problemCode == ServiceIssue.NONE) {
-            responseStream.write(respondNormal(reqHeading.fetchMethod(), reqHeading.fetchURI()).asBytes());
+            responseStream.writeBytes(respondNormal(reqHeading.fetchMethod(), reqHeading.fetchURI()).asBytes());
         } else {
-            responseStream.write(respondAbnormal().asBytes());
+            responseStream.writeBytes(respondAbnormal().asBytes());
         }
 
-        responseStream.flush();
+        if (responseStream.checkError()) {
+            throw new IOException("Data write failed.");
+        } else {
+            penaltyCount--; // successful HTTP exchanges reduce penalty count
+        }
 
         if (!hasKeepAlive) {
             workerLogger.info("Ending normally."); // debug
@@ -232,14 +236,13 @@ public class ServerWorker implements Runnable {
                         handleRespondState();
                         break;
                     case STOP:
-                        workerLogger.info("State: STOP");
                         break;
                     default:
                         state = ServiceState.STOP;
                         break;
                 }
             } catch(SocketTimeoutException timeoutEx) {
-                workerLogger.info("Timeout!");
+                workerLogger.info(timeoutEx.toString());
                 problemCode = ServiceIssue.NONE;
                 state = ServiceState.STOP;
                 penaltyCount++;
