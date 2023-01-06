@@ -43,6 +43,19 @@ public class StaticResource {
         length = asBytes().length;
     }
 
+    public String fetchMIMEType() {
+        // TODO: replace naive switch with a HashMap for better time complexity??
+        switch (type) {
+            case TEXT_HTML:
+                return "text/html";
+            case TEXT_CSS:
+                return "text/css";
+            case TEXT_PLAIN:
+            default:
+                return "text/plain";
+        }
+    }
+
     public String asText() {
         return rawData;
     }
