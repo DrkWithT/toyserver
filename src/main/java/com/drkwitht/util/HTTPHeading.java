@@ -21,7 +21,7 @@ public class HTTPHeading {
         return requestMethod;
     }
 
-    public String fetchURL() {
+    public String fetchURI() {
         return requestURL;
     }
 
