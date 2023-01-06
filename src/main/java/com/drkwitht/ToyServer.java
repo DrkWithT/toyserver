@@ -62,7 +62,7 @@ public class ToyServer
                 }
             }
 
-            closeSelf();
+            closeSelf(); // TODO: this never executes in practical test runs. I should add a penalty count to close the server from bad clients?
         }
     }
 
@@ -101,9 +101,9 @@ public class ToyServer
             ToyServer app = new ToyServer(8080, 5, responders);
             app.listen();
         } catch (IOException listenEx) {
-            System.err.println("Failed to launch server: " + listenEx);
+            System.err.println("Failed to launch server by IOException: " + listenEx);
         } catch (Exception otherEx) {
-            System.err.println("Failed to initialize handlers: " + otherEx);
+            System.err.println("Failed to launch server by Exception: " + otherEx);
         }
     }
 }
