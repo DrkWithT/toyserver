@@ -12,6 +12,7 @@ This Java repo contains files and code for a toy _HTTP 1.1_ server. The server i
  1. Create basic worker and HTTP request-response classes. (DONE)
     - Create and integrate a request handler class!
  2. Support persistent / non-persistent connections. (DONE FOR NOW)
- 3. Rewrite server resource code.
+ 3. Rewrite server resource code. (DONE)
  4. Add HEAD method support.
  5. Support `100 Continue` responses.
+ 6. Support chunked responses.
