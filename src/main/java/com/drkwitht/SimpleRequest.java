@@ -12,6 +12,7 @@ import com.drkwitht.util.HTTPMethod;
 
 /**
  * Defines an interface to a raw input stream that reads raw HTTP request text. This dynamically reads request lines and parses them with methods <code>fetchHeading</code>, <code>fetchHeader</code>, and <code>fetchBody</code>.
+ * @author Derek Tan
  */
 public class SimpleRequest {
     private HashMap<String, HTTPMethod> methodMap;
@@ -43,7 +44,7 @@ public class SimpleRequest {
         String rawLine = requestStream.readLine();
 
         if (rawLine == null) {
-            return new HTTPHeading(HTTPMethod.HEAD, "/", "HTTP/1.1"); // default as HEAD request!
+            return new HTTPHeading(HTTPMethod.UNKNOWN, "/", "HTTP/1.1"); // default as HEAD request!
         }
 
         String[] tokens = rawLine.split(" ");

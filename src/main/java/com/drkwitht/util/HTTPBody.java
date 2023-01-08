@@ -2,6 +2,7 @@ package com.drkwitht.util;
 
 /**
  * This data class encapsulates HTTP body data of MIME types <code>text/?</code> for now.
+ * @author Derek Tan
  */
 public class HTTPBody {
     private HTTPContentType type;

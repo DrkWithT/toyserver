@@ -2,6 +2,7 @@ package com.drkwitht.util;
 
 /**
  * Defines service problem codes. Each code can map to an HTTP status.
+ * @author Derek Tan
  */
 public enum ServiceIssue {
     NONE,        // Regex(not(4){2}..)

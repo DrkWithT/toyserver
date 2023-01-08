@@ -9,6 +9,7 @@ import com.drkwitht.util.HTTPContentType;
 
 /**
  * Encapsulates data of any static resource file, given supported MIME type and a valid local file path. Contains helper methods for getting content length or content in various forms such as bytes.
+ * @author Derek Tan
  */
 public class StaticResource {
     private HTTPContentType type; // MIME content type code 
