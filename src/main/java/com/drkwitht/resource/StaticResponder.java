@@ -4,6 +4,8 @@ import java.util.TreeSet;
 
 /**
  * This class encapsulates data and logic for generating response bodies given a URI describing a "route" to a resource.
+ * @implNote These are meant to return content for GET and HEAD requests for now.
+ * @author Derek Tan
  */
 public class StaticResponder {
     private TreeSet<String> routeCollection;  // URI mapped to resource object
