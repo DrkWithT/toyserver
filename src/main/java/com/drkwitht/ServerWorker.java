@@ -150,7 +150,7 @@ public class ServerWorker implements Runnable {
         boolean pathMatched = false;
         StaticResource resource = null;
 
-        if (method == HTTPMethod.UNKNOWN || (!hasGET && !hasHEAD)) {
+        if (!hasGET && !hasHEAD) {
             problemCode = ServiceIssue.NO_SUPPORT;
             return respondAbnormal();
         }
@@ -176,7 +176,7 @@ public class ServerWorker implements Runnable {
         response.addHeader("Content-Type", resource.fetchMIMEType());
         response.addHeader("Content-Length", "" + resource.fetchLength());
 
-        if (method != HTTPMethod.HEAD) {
+        if (!hasHEAD) {
             response.addBody(resource.asText()); // include body for responding to GET!
         } else {
             response.addBody(""); // no body for responding to HEAD!
