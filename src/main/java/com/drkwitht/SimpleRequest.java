@@ -12,6 +12,7 @@ import com.drkwitht.util.HTTPMethod;
 
 /**
  * Defines an interface to a raw input stream that reads raw HTTP request text. This dynamically reads request lines and parses them with methods <code>fetchHeading</code>, <code>fetchHeader</code>, and <code>fetchBody</code>.
+ * @implNote POST method support is not yet implemented. This is a to-do task.
  * @author Derek Tan
  */
 public class SimpleRequest {
@@ -24,7 +25,7 @@ public class SimpleRequest {
         methodMap = new HashMap<String, HTTPMethod>();
         methodMap.put("HEAD", HTTPMethod.HEAD);
         methodMap.put("GET", HTTPMethod.GET);
-        methodMap.put("POST", HTTPMethod.POST);
+        // methodMap.put("POST", HTTPMethod.POST); // TODO: add POST support later.
         methodMap.put("UNKNOWN", HTTPMethod.UNKNOWN);
     }
 
