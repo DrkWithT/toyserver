@@ -145,11 +145,12 @@ public class ServerWorker implements Runnable {
     }
 
     private SimpleResponse respondNormal(HTTPMethod method, String routingPath) {
-        boolean methodSupported = method == HTTPMethod.GET; // TODO: add HEAD support!
+        boolean hasGET = method == HTTPMethod.GET;
+        boolean hasHEAD = method == HTTPMethod.HEAD;
         boolean pathMatched = false;
         StaticResource resource = null;
 
-        if (!methodSupported) {
+        if (method == HTTPMethod.UNKNOWN || (!hasGET && !hasHEAD)) {
             problemCode = ServiceIssue.NO_SUPPORT;
             return respondAbnormal();
         }
@@ -173,8 +174,13 @@ public class ServerWorker implements Runnable {
         response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
         response.addHeader("Connection", "Keep-Alive");
         response.addHeader("Content-Type", resource.fetchMIMEType());
-        response.addHeader("Content-Length", "" + resource.fetchLength()); // I only use ASCII ranged characters in my HTML or text responses... Thus, I can use string length rather than byte count.
-        response.addBody(resource.asText());
+        response.addHeader("Content-Length", "" + resource.fetchLength());
+
+        if (method != HTTPMethod.HEAD) {
+            response.addBody(resource.asText()); // include body for responding to GET!
+        } else {
+            response.addBody(""); // no body for responding to HEAD!
+        }
 
         return response;
     }
