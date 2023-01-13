@@ -13,11 +13,10 @@ This Java repo contains files and code for a toy _HTTP 1.1_ server. The server i
     - Create and integrate a request handler class!
  2. Support persistent / non-persistent connections. (DONE FOR NOW)
  3. Rewrite server resource code. (DONE)
- 4. Add HEAD method support. (WIP)
- 5. Support `100 Continue` responses.
- 6. Support chunked responses.
+ 4. Add HEAD method support. (DONE)
+ 5. Support `If-Unmodified-Since` header. Honor this whenever recieved with a `200` or `304` based on the header's vs. resource's updating date.
+ 6. Support `100 Continue` responses.
+ 7. Support chunked requests.
 
 ### Other Todos:
- 1. Caching the data of small static resources as `String` will work for now, but _will_ add memory overhead as
-  each `ServerWorker` object stores more `StaticResponder` objects... I must replace the resource class with a dynamic read method for any static files **soon**!!
- 2. The SimpleResponse class needs an overhaul to support chunked responses. It might be better to encapsulate the `responseStream` within another `ChunkedResponse` class for an easy fix, as single vs chunked responses have a somewhat different structure.
+ 1. The `SimpleRequest` class needs an overhaul to support chunked requests. It might be better to encapsulate the `responseStream` within another `ChunkedRequest` class for an easy fix, as single vs chunked responses have some different grammar.
