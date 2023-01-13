@@ -28,26 +28,30 @@ import com.drkwitht.util.ServiceState;
  * @author Derek Tan
  */
 public class ServerWorker implements Runnable {
+    private final int[] STATUS_CODES = {200, 400, 404, 501, 500};
+    private final String[] STATUS_MSGS = {"OK", "Bad Request", "Not Found", "Method Not Supported", "Internal Server Error"};
+
+    private String serverName;            // server software name
     private Socket connection;            // connection
     private BufferedReader requestStream; 
     private PrintStream responseStream;
+
     private DateTimeFormatter timeFormat; // GMT date generator
     private Logger workerLogger;          // debug message printer
 
     private ArrayList<StaticResponder> routedHandlers; // handlers for requests by route
     private SimpleRequest request;
     private HTTPHeading reqHeading;
-    private HTTPBody reqBody; // TODO: process for POST requests?
+    private HTTPBody reqBody;             // TODO: process for POST requests?
 
-    private ServiceState state;       // service state
-    private ServiceIssue problemCode; // client or server problem code
-    private int penaltyCount;         // deadly server exception count (2+ means stop!)
-
-    boolean hasKeepAlive;             // persistent connection flag
-    private String serverName;        // server software name
-    private int reqBodyLength;        // req body byte count
+    private ServiceState state;           // service state
+    private ServiceIssue problemCode;     // client or server problem code
+    private int penaltyCount;             // deadly server exception count (2+ means stop!)
+    boolean hasKeepAlive;                 // persistent connection flag
+    private int reqBodyLength;            // req body byte count
 
     public ServerWorker(String applicationName, Socket connectingSocket, ArrayList<StaticResponder> handlers) throws IOException {
+        serverName = applicationName;
         connection = connectingSocket;
         connection.setSoTimeout(30000); // timeout: 30s is a kludge for stale connections!
         requestStream = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -66,7 +70,6 @@ public class ServerWorker implements Runnable {
         problemCode = ServiceIssue.NONE;
         penaltyCount = 0;
         hasKeepAlive = true;
-        serverName = applicationName;
         reqBodyLength = 0;
     }
 
@@ -110,32 +113,15 @@ public class ServerWorker implements Runnable {
     }
 
     private SimpleResponse respondAbnormal() {
-        int statusNumber = 200;
-        String statusMsg = "OK";
-
-        switch (problemCode) {
-            case BAD_REQUEST:
-                statusNumber = 400;
-                statusMsg = "Bad Request";
-                break;
-            case NOT_FOUND:
-                statusNumber = 404;
-                statusMsg = "Not Found";
-                break;
-            case NO_SUPPORT:
-                statusNumber = 501;
-                statusMsg = "Method Not Supported";
-                break;
-            case UNKNOWN: // generic server error
-            default:
-                statusNumber = 500;
-                statusMsg = "Internal Server Error";
-                break;
+        int statusIndex = problemCode.ordinal();
+        
+        if (statusIndex >= STATUS_CODES.length) {
+            statusIndex = ServiceIssue.UNKNOWN.ordinal();
         }
 
         SimpleResponse response = new SimpleResponse();
 
-        response.addTop("HTTP/1.1", statusNumber, statusMsg);
+        response.addTop("HTTP/1.1", STATUS_CODES[statusIndex], STATUS_MSGS[statusIndex]);
         response.addHeader("Server", serverName);
         response.addHeader("Date", timeFormat.format(ZonedDateTime.now()));
         response.addHeader("Connection", "Keep-Alive");
@@ -144,7 +130,7 @@ public class ServerWorker implements Runnable {
         return response;
     }
 
-    private SimpleResponse respondNormal(HTTPMethod method, String routingPath) {
+    private SimpleResponse respondNormal(HTTPMethod method, String routingPath) throws IOException {
         boolean hasGET = method == HTTPMethod.GET;
         boolean hasHEAD = method == HTTPMethod.HEAD;
         boolean pathMatched = false;
@@ -177,7 +163,7 @@ public class ServerWorker implements Runnable {
         response.addHeader("Content-Length", "" + resource.fetchLength());
 
         if (!hasHEAD) {
-            response.addBody(resource.asText()); // include body for responding to GET!
+            response.addBody(resource.fetchText()); // include body for responding to GET!
         } else {
             response.addBody(""); // no body for responding to HEAD!
         }
