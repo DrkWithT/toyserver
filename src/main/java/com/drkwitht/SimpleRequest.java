@@ -25,7 +25,7 @@ public class SimpleRequest {
         methodMap = new HashMap<String, HTTPMethod>();
         methodMap.put("HEAD", HTTPMethod.HEAD);
         methodMap.put("GET", HTTPMethod.GET);
-        // methodMap.put("POST", HTTPMethod.POST); // TODO: add POST support later.
+        // methodMap.put("POST", HTTPMethod.POST); // TODO: uncomment this for POST support addition.
         methodMap.put("UNKNOWN", HTTPMethod.UNKNOWN);
     }
 

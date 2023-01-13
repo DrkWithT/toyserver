@@ -62,7 +62,7 @@ public class ToyServer
                 }
             }
 
-            closeSelf(); // TODO: this never executes in practical test runs. I should add a penalty count to close the server from bad clients?
+            closeSelf(); // TODO: this never executes during no-debug. I could add a penalty count to close the server from bad connection requests.
         }
     }
 
